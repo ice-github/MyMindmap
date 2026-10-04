@@ -1,6 +1,30 @@
 import { expect, test } from '@playwright/test';
 import { TOPICS, cancelEditing, selectFirstTopic, topicCount } from './helpers.js';
 
+async function importBranchFixture(page: import('@playwright/test').Page): Promise<void> {
+  page.on('dialog', (dialog) => void dialog.accept());
+  await page.locator('#toolbar input[type="file"]').setInputFiles({
+    name: 'branches.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      data: {
+        direction: 1,
+        nodeData: {
+          id: 'root', root: true, topic: 'Root', children: [
+            { id: 'alpha', topic: 'Alpha', direction: 1, children: [
+              { id: 'alpha-1', topic: 'Alpha-1', children: [{ id: 'alpha-2', topic: 'Alpha-2' }] },
+            ] },
+            { id: 'beta', topic: 'Beta', direction: 1, children: [{ id: 'beta-1', topic: 'Beta-1' }] },
+          ],
+        },
+      },
+    })),
+  });
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Alpha-2' })).toBeVisible();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#map')).toBeVisible();
@@ -136,6 +160,44 @@ test('移動モードでCentralにShift+Enterしてもマップを壊さない',
   await expect(page.locator('#map-container')).toHaveAttribute('data-move-mode', 'true');
   await expect(page.locator('#map me-tpc').filter({ hasText: 'Central Topic' })).toBeVisible();
   expect(await topicCount(page)).toBe(before);
+});
+
+test('Spaceで選択ノードの展開を個別に切り替える', async ({ page }) => {
+  await importBranchFixture(page);
+  const alpha = page.locator('#map me-tpc').filter({ hasText: 'Alpha' }).first();
+  await alpha.click();
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Alpha-1' })).toBeVisible();
+  await page.keyboard.press('Space');
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Alpha-1' })).toHaveCount(0);
+  await page.keyboard.press('Space');
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Alpha-1' })).toBeVisible();
+});
+
+test('Ctrl+Shift+Fで選択ノードの祖先経路と子孫を残して他枝を閉じる', async ({ page }) => {
+  await importBranchFixture(page);
+  const selected = page.locator('#map me-tpc').filter({ hasText: 'Alpha-1' });
+  await selected.click();
+  await page.keyboard.press('Control+Shift+f');
+
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Root' })).toBeVisible();
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Alpha' }).first()).toBeVisible();
+  await expect(selected).toHaveClass(/selected/);
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Alpha-2' })).toBeVisible();
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Beta' })).toBeVisible();
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Beta-1' })).toHaveCount(0);
+});
+
+test('Ctrl+Shift+Eで全て展開し、選択ノードを維持する', async ({ page }) => {
+  await importBranchFixture(page);
+  await page.locator('[data-action="collapse-all"]').click();
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Alpha-2' })).toHaveCount(0);
+  const alpha = page.locator('#map me-tpc').filter({ hasText: /^Alpha$/ });
+  await alpha.click();
+
+  await page.keyboard.press('Control+Shift+e');
+
+  await expect(page.locator('#map me-tpc').filter({ hasText: 'Alpha-2' })).toBeVisible();
+  await expect(alpha).toHaveClass(/selected/);
 });
 
 test('子を追加ボタンでノード数が増え undo/redo で戻る', async ({ page }) => {

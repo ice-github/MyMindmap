@@ -65,7 +65,7 @@ export function createToolbar(root: HTMLElement, actions: ToolbarActions): Toolb
     { action: 'add-child', label: '子を追加', title: '子ノードを追加する (Tab)', run: actions.onAddChild, requiresEdit: true, requiresSelection: true, disabledForRoot: false },
     { action: 'add-sibling', label: '兄弟を追加', title: '兄弟ノードを追加する (Enter)', run: actions.onAddSibling, requiresEdit: true, requiresSelection: true, disabledForRoot: true },
     { action: 'remove', label: '削除', title: '選択したノードを削除する (Delete)', run: actions.onRemove, requiresEdit: true, requiresSelection: true, disabledForRoot: true },
-    { action: 'toggle-expand', label: '展開切替', title: '選択したノードの展開/折りたたみを切り替える', run: actions.onToggleExpand, requiresEdit: false, requiresSelection: true, disabledForRoot: false },
+    { action: 'toggle-expand', label: '展開切替', title: '選択したノードの展開/折りたたみを切り替える (Space)', run: actions.onToggleExpand, requiresEdit: false, requiresSelection: true, disabledForRoot: false },
     { action: 'expand-all', label: '全て展開', title: 'すべてのノードを展開する', run: actions.onExpandAll, requiresEdit: false, requiresSelection: false, disabledForRoot: false },
     { action: 'collapse-all', label: '全て折畳', title: 'すべてのノードを折りたたむ', run: actions.onCollapseAll, requiresEdit: false, requiresSelection: false, disabledForRoot: false },
     { action: 'move-up', label: '上へ', title: '選択したノードを上へ移動する', run: actions.onMoveUp, requiresEdit: true, requiresSelection: true, disabledForRoot: true },

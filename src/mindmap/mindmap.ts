@@ -244,6 +244,65 @@ export class MindmapController {
           return
         }
       }
+      const targetElement = event.target instanceof HTMLElement ? event.target : null
+      if (targetElement?.id === 'input-box' || targetElement?.isContentEditable) return
+      if (this.shortcutsEnabled && !this.moveSourceId && event.code === 'Space') {
+        const mind = this.instance
+        const selected = mind?.currentNode ?? mind?.currentNodes?.[0]
+        if (selected?.nodeObj?.children?.length) {
+          event.preventDefault()
+          event.stopImmediatePropagation()
+          try {
+            this.events.onBeforeOperation()
+            mind.expandNode(selected)
+            this.events.onDataChange('expandNode')
+            this.notifySelection()
+          } catch {
+            // Ignore when the selected node cannot be expanded/collapsed.
+          }
+          return
+        }
+      }
+      if (
+        this.shortcutsEnabled && !this.moveSourceId && (event.ctrlKey || event.metaKey) && event.shiftKey &&
+        !event.altKey && event.key.toLowerCase() === 'e'
+      ) {
+        const mind = this.instance
+        const rootId = mind?.nodeData?.id
+        const selectedId = (mind?.currentNode ?? mind?.currentNodes?.[0])?.nodeObj?.id
+        if (typeof rootId === 'string') {
+          event.preventDefault()
+          event.stopImmediatePropagation()
+          try {
+            this.events.onBeforeOperation()
+            const root = mind.findEle(rootId)
+            mind.expandNodeAll(root, true)
+            if (typeof selectedId === 'string') {
+              const selected = mind.findEle(selectedId)
+              if (selected) mind.selectNode(selected)
+            }
+            this.events.onDataChange('expandAll')
+            this.notifySelection()
+          } catch {
+            // Expanding all is best-effort when a map is being refreshed.
+          }
+          return
+        }
+      }
+      if (
+        this.shortcutsEnabled && !this.moveSourceId && (event.ctrlKey || event.metaKey) && event.shiftKey &&
+        !event.altKey && event.key.toLowerCase() === 'f'
+      ) {
+        const mind = this.instance
+        const selected = mind?.currentNode ?? mind?.currentNodes?.[0]
+        const selectedId = selected?.nodeObj?.id
+        if (typeof selectedId === 'string') {
+          event.preventDefault()
+          event.stopImmediatePropagation()
+          this.focusSelectedPath(mind, selectedId)
+          return
+        }
+      }
       if (
         this.shortcutsEnabled && this.editableState && event.altKey &&
         !event.ctrlKey && !event.metaKey &&
@@ -310,6 +369,40 @@ export class MindmapController {
     target.addEventListener('keydown', handler, true)
     this.layoutKeyTarget = target
     this.layoutKeyHandler = handler
+  }
+
+  private focusSelectedPath(mind: any, selectedId: string): void {
+    try {
+      const data = mind.getData()
+      const path = new Set<string>()
+      const findPath = (node: any): boolean => {
+        if (!node || typeof node.id !== 'string') return false
+        path.add(node.id)
+        if (node.id === selectedId) return true
+        for (const child of node.children ?? []) {
+          if (findPath(child)) return true
+        }
+        path.delete(node.id)
+        return false
+      }
+      if (!findPath(data.nodeData)) return
+
+      const setExpansion = (node: any, inSelectedSubtree = false): void => {
+        const isSelected = node.id === selectedId
+        const keepOpen = inSelectedSubtree || path.has(node.id)
+        if (node.children?.length) node.expanded = keepOpen
+        for (const child of node.children ?? []) setExpansion(child, inSelectedSubtree || isSelected)
+      }
+      setExpansion(data.nodeData)
+      this.events.onBeforeOperation()
+      mind.refresh(data)
+      const selected = mind.findEle(selectedId)
+      if (selected) mind.selectNode(selected)
+      this.events.onDataChange('focusSelectedPath')
+      this.notifySelection()
+    } catch {
+      // Keep the current map intact if the focus view cannot be applied.
+    }
   }
 
   private async moveBranchToSide(
