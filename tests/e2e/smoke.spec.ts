@@ -38,10 +38,14 @@ test('Ctrl+矢印でレイアウトを切り替えても選択ノードを維持
   await child.click();
   const nodeId = await child.getAttribute('data-nodeid');
 
-  for (const key of ['Control+ArrowLeft', 'Control+ArrowUp', 'Control+ArrowRight']) {
+  for (const [index, key] of ['Control+ArrowLeft', 'Control+ArrowUp', 'Control+ArrowRight'].entries()) {
     await page.keyboard.press(key);
     await expect(page.locator(`#map me-tpc[data-nodeid="${nodeId}"]`)).toHaveClass(/selected/);
     await expect(page.locator('[data-action="add-sibling"]')).toBeEnabled();
+    if (index === 0) {
+      await expect.poll(() => page.locator(`#map me-tpc[data-nodeid="${nodeId}"]`)
+        .evaluate((node) => node.getAnimations().some((animation) => animation.playState === 'running'))).toBe(true);
+    }
   }
 });
 

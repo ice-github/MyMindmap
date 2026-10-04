@@ -293,11 +293,15 @@ export class MindmapController {
       // Stop Mind Elixir's bubble-phase handler from repeating the refresh.
       event.stopImmediatePropagation()
       try {
+        this.events.onBeforeOperation()
         mind[method]()
         if (typeof id === 'string' && typeof mind.findEle === 'function' && typeof mind.selectNode === 'function') {
           const topic = mind.findEle(id)
           if (topic) mind.selectNode(topic)
         }
+        // Layout shortcuts do not emit an `operation` event, so explicitly
+        // persist the changed direction and consume the FLIP snapshot.
+        this.events.onDataChange('changeDirection')
         this.notifySelection()
       } catch {
         // Layout changes are best-effort.
